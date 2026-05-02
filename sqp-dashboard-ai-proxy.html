@@ -1,0 +1,1888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQP Analytics Dashboard + AI Insights</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-primary:#ffffff;--bg-secondary:#f5f5f3;--bg-info:#e6f1fb;
+  --text-primary:#1a1a18;--text-secondary:#6b6b67;--text-info:#185fa5;
+  --border-tertiary:rgba(0,0,0,0.12);--border-secondary:rgba(0,0,0,0.22);
+  --radius-md:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg-primary:#1e1e1c;--bg-secondary:#2a2a28;--bg-info:#042c53;
+    --text-primary:#f0f0ee;--text-secondary:#999994;--text-info:#85b7eb;
+    --border-tertiary:rgba(255,255,255,0.1);--border-secondary:rgba(255,255,255,0.2);
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg-secondary);color:var(--text-primary);min-height:100vh}
+.app{padding:20px;max-width:1200px;margin:0 auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:16px;font-weight:600;color:var(--text-primary)}
+.badge{font-size:11px;padding:3px 10px;border-radius:20px;background:var(--bg-info);color:var(--text-info)}
+.asin-tag{font-size:12px;color:var(--text-secondary);font-family:monospace}
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;border-bottom:0.5px solid var(--border-tertiary)}
+.tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--text-primary);border-bottom:2px solid #3266ad;font-weight:500}
+.panel{display:none}.panel.active{display:block}
+.row{display:grid;gap:12px;margin-bottom:16px}
+.row-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.row-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.metric-card{background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px 16px;border:0.5px solid var(--border-tertiary)}
+.metric-label{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:500;color:var(--text-primary)}
+.metric-delta{font-size:11px;margin-top:2px}
+.metric-delta.up{color:#1D9E75}.metric-delta.dn{color:#D85A30}
+.card{background:var(--bg-primary);border:0.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:16px}
+.card-title{font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.controls label{font-size:13px;color:var(--text-secondary)}
+select{font-size:13px;padding:6px 10px;border-radius:var(--radius-md);border:0.5px solid var(--border-secondary);background:var(--bg-primary);color:var(--text-primary);cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary)}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.chart-wrap{position:relative;width:100%}
+.price-info{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.price-chip{font-size:12px;padding:4px 12px;border-radius:20px;border:0.5px solid var(--border-secondary);color:var(--text-secondary)}
+.range-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.range-row label{font-size:13px;color:var(--text-secondary);white-space:nowrap}
+.range-row input[type=range]{flex:1;max-width:220px;accent-color:#3266ad}
+.range-val{font-size:14px;font-weight:500;min-width:36px;color:var(--text-primary)}
+.query-count{font-size:12px;color:var(--text-secondary)}
+.file-btn{padding:7px 16px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);cursor:pointer;font-size:13px}
+.file-btn:hover{background:var(--bg-secondary)}
+.status-msg{font-size:12px;color:#1D9E75;margin-bottom:10px;min-height:18px;transition:opacity .3s}
+@media(max-width:640px){.row-4{grid-template-columns:1fr 1fr}.row-2{grid-template-columns:1fr}}
+#sqpTooltip{position:absolute;display:none;z-index:9999;background:var(--bg-primary);border:0.5px solid var(--border-secondary);border-radius:var(--radius-lg);padding:14px 16px;width:300px;max-width:calc(100% - 20px);box-shadow:0 4px 24px rgba(0,0,0,0.18);pointer-events:all}
+#sqpTooltip .tt-header{margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid var(--border-tertiary)}
+#sqpTooltip .tt-query{font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:3px}
+#sqpTooltip .tt-meta{display:flex;gap:14px;font-size:11px;color:var(--text-secondary)}
+#sqpTooltip .tt-meta span strong{color:var(--text-primary);font-weight:500}
+#sqpTooltip .tt-price-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+#sqpTooltip .tt-price-chip{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid var(--border-secondary);color:var(--text-secondary)}
+#sqpTooltip .tt-price-chip strong{color:var(--text-primary)}
+#sqpTooltip .tt-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+#sqpTooltip .tt-section{font-size:10px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;grid-column:1/-1;margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border-tertiary)}
+#sqpTooltip .tt-row{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+#sqpTooltip .tt-row .lbl{color:var(--text-secondary)}
+#sqpTooltip .tt-row .val{font-weight:500;color:var(--text-primary)}
+#sqpTooltip .val-bad{font-weight:500;padding:1px 7px;border-radius:4px;background:#FCEBEB;color:#A32D2D}
+#sqpTooltip .val-good{font-weight:500;padding:1px 7px;border-radius:4px;background:#EAF3DE;color:#3B6D11}
+@media(prefers-color-scheme:dark){#sqpTooltip .val-bad{background:#501313;color:#F7C1C1}#sqpTooltip .val-good{background:#173404;color:#C0DD97}}
+#sqpTooltip .tt-footer{margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border-tertiary);display:flex;align-items:center;gap:8px}
+.track-btn{padding:5px 14px;font-size:12px;font-weight:500;border-radius:var(--radius-md);border:0.5px solid #3266ad;background:transparent;color:#3266ad;cursor:pointer;pointer-events:all;transition:background .15s}
+.track-btn:hover{background:rgba(50,102,173,0.1)}
+.track-btn.tracked{background:#3266ad;color:#fff;border-color:#3266ad}
+.track-tag{font-size:11px;color:#1D9E75;display:none}
+.ov-track-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.ov-track-row .card-title{margin-bottom:0}
+.track-btn.limit{background:#f5f5f3;color:#aaa;border-color:#ddd;cursor:not-allowed;opacity:.6}
+.tt-limit-msg{font-size:11px;color:#D85A30;display:none;margin-left:4px}
+.no-tracked{font-size:12px;color:var(--text-secondary);font-style:italic;padding:20px 0;text-align:center}
+.tracked-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:0.5px solid var(--border-tertiary);border-radius:var(--radius-md);background:var(--bg-secondary);gap:12px;flex-wrap:wrap}
+.tracked-item-name{font-size:13px;font-weight:500;color:var(--text-primary);flex:1;min-width:120px}
+.tracked-item-meta{display:flex;gap:16px;font-size:11px;color:var(--text-secondary)}
+.tracked-item-meta span strong{color:var(--text-primary)}
+.tracked-item-remove{font-size:11px;padding:3px 10px;border:0.5px solid #D85A30;border-radius:var(--radius-md);background:transparent;color:#D85A30;cursor:pointer;flex-shrink:0}
+.tracked-item-remove:hover{background:#FCEBEB}
+
+/* ── AI Insight Panel ─────────────────────────────────────────────────────── */
+.ai-panel{background:var(--bg-primary);border:0.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px}
+.ai-panel-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.ai-panel-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em}
+.ai-spark{font-size:15px}
+.ai-key-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ai-key-input{font-size:12px;padding:5px 10px;border-radius:var(--radius-md);border:0.5px solid var(--border-secondary);background:var(--bg-secondary);color:var(--text-primary);width:240px;font-family:monospace}
+.ai-key-input::placeholder{color:var(--text-secondary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.ai-btn{padding:6px 14px;font-size:12px;font-weight:500;border-radius:var(--radius-md);border:0.5px solid #3266ad;background:#3266ad;color:#fff;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.ai-btn:hover{opacity:.85}
+.ai-btn:disabled{opacity:.45;cursor:not-allowed}
+.ai-btn.secondary{background:transparent;color:#3266ad}
+.ai-btn.secondary:hover{background:rgba(50,102,173,0.08)}
+.ai-output{font-size:13px;line-height:1.7;color:var(--text-primary);min-height:0;transition:all .2s}
+.ai-output.loading{color:var(--text-secondary);font-style:italic}
+.ai-output.error{color:#D85A30}
+.ai-output p{margin-bottom:8px}
+.ai-output p:last-child{margin-bottom:0}
+.ai-output strong{color:var(--text-primary);font-weight:600}
+.ai-output ul{padding-left:18px;margin-bottom:8px}
+.ai-output li{margin-bottom:3px}
+.ai-disclosure{font-size:10px;color:var(--text-secondary);margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border-tertiary);line-height:1.5}
+.ai-scope-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.ai-scope-row label{font-size:12px;color:var(--text-secondary)}
+.ai-scope-row select{font-size:12px;padding:4px 8px}
+@media(prefers-color-scheme:dark){.ai-key-input{background:var(--bg-secondary)}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     LANDING SCREEN
+     This is the first thing a new user sees. It's hidden once they have data.
+     Think of it as the "front door" of the app — friendly instructions
+     before jumping into charts.
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="landing" style="display:none;position:fixed;inset:0;background:var(--bg-secondary);z-index:1000;overflow-y:auto">
+  <div style="max-width:560px;margin:0 auto;padding:60px 24px 40px">
+    <div style="text-align:center;margin-bottom:40px">
+      <div style="font-size:28px;font-weight:700;letter-spacing:-.5px;color:var(--text-primary);margin-bottom:8px">SQP Analytics</div>
+      <div style="font-size:15px;color:var(--text-secondary)">Amazon Search Query Performance dashboard</div>
+    </div>
+
+    <div style="background:var(--bg-primary);border:0.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:28px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:6px">Upload your SQP report CSV</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6">
+        In Amazon Seller Central go to <strong>Brand Analytics → Search Query Performance</strong>. 
+        Set your date range, click Download, and upload the CSV here. 
+        You can upload multiple weekly files at once — they'll be merged and sorted automatically.
+      </div>
+      <div id="dropZone" style="border:2px dashed var(--border-secondary);border-radius:var(--radius-md);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s"
+        onclick="document.getElementById('csvInputLanding').click()"
+        ondragover="event.preventDefault();this.style.borderColor='#3266ad';this.style.background='var(--bg-info)'"
+        ondragleave="this.style.borderColor='';this.style.background=''"
+        ondrop="handleDrop(event)">
+        <div style="font-size:32px;margin-bottom:10px">📂</div>
+        <div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:4px">Drop CSV files here</div>
+        <div style="font-size:12px;color:var(--text-secondary)">or click to browse — supports .csv and .tsv</div>
+      </div>
+      <input type="file" id="csvInputLanding" accept=".csv,.tsv,.txt" style="display:none" multiple onchange="handleLandingUpload(event)">
+      <div style="text-align:center;margin:16px 0 4px;font-size:12px;color:var(--text-secondary)">or</div>
+      <button onclick="loadSampleData()" style="width:100%;padding:10px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer">
+        Try with sample data (earbuds ASIN, 8 weeks)
+      </button>
+    </div>
+
+    <div style="background:var(--bg-primary);border:0.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:10px">Import a saved workspace</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">If someone shared a <code>.sqp</code> workspace file with you, import it to load their exact dashboard.</div>
+      <button onclick="document.getElementById('importInput').click()" style="padding:8px 16px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary);font-size:12px;cursor:pointer">
+        Import workspace file (.sqp)
+      </button>
+      <input type="file" id="importInput" accept=".sqp,.json" style="display:none" onchange="importWorkspace(event)">
+    </div>
+
+    <div style="background:var(--bg-info);border:0.5px solid var(--border-tertiary);border-radius:var(--radius-md);padding:14px 16px">
+      <div style="font-size:11px;font-weight:500;color:var(--text-info);margin-bottom:4px">Your data stays on your device</div>
+      <div style="font-size:11px;color:var(--text-secondary);line-height:1.6">
+        All uploaded data is stored in your browser's local database (IndexedDB). 
+        Nothing is sent to any server. Your data persists across sessions — 
+        come back tomorrow and everything will still be here.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <h1 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">Amazon SQP Analytics Dashboard</h1>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="logo">SQP Analytics</span>
+      <span class="badge">Search Query Performance</span>
+      <span class="badge" style="background:linear-gradient(135deg,#1a3a6b,#3266ad);color:#fff">✦ AI Insights</span>
+      <span class="asin-tag" id="asinDisplay">ASIN: B0DEMO12345</span>
+      <span id="dataInfoBadge" style="font-size:11px;color:var(--text-secondary);padding:3px 8px;border-radius:12px;border:0.5px solid var(--border-tertiary);display:none"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <button class="file-btn" onclick="document.getElementById('csvInput').click()" title="Add more weekly CSV files — merges with existing data">+ Add CSV</button>
+      <input type="file" id="csvInput" accept=".csv,.tsv,.txt" style="display:none" multiple onchange="handleMultipleCSV(event)">
+      <button class="file-btn" onclick="exportWorkspace()" title="Download your data + tracked keywords as a shareable .sqp file">Export</button>
+      <button class="file-btn" onclick="document.getElementById('importInputTopbar').click()" title="Import a .sqp workspace file">Import</button>
+      <input type="file" id="importInputTopbar" accept=".sqp,.json" style="display:none" onchange="importWorkspace(event)">
+      <button class="file-btn" onclick="confirmClearData()" style="color:#D85A30" title="Clear all data and start fresh">Clear data</button>
+    </div>
+  </div>
+
+  <div class="status-msg" id="statusMsg"></div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('trend',this)">Trend Explorer</button>
+    <button class="tab" onclick="switchTab('price',this)">Price Scanner</button>
+    <button class="tab" onclick="switchTab('tracked',this)">Tracked Keywords <span id="trackedBadge" style="background:#3266ad;color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;margin-left:4px;vertical-align:middle">0</span></button>
+    <button class="tab" onclick="switchTab('ai',this)">✦ AI Insights</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="overview" class="panel active">
+    <div class="row row-4">
+      <div class="metric-card"><div class="metric-label">Top Query Impressions Share</div><div class="metric-val" id="ov1">—</div><div class="metric-delta up" id="ov1d"></div></div>
+      <div class="metric-card"><div class="metric-label">Top Query Clicks Share</div><div class="metric-val" id="ov2">—</div><div class="metric-delta up" id="ov2d"></div></div>
+      <div class="metric-card"><div class="metric-label">Top Query Cart Add Share</div><div class="metric-val" id="ov3">—</div><div class="metric-delta dn" id="ov3d"></div></div>
+      <div class="metric-card"><div class="metric-label">Top Query Purchase Share</div><div class="metric-val" id="ov4">—</div><div class="metric-delta up" id="ov4d"></div></div>
+    </div>
+    <div class="row row-2">
+      <div class="card">
+        <div class="card-title">Impression share by query — latest week</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="barImp" role="img" aria-label="Horizontal bar chart of impression share by search query">Loading…</canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Click share by query — latest week</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="barClk" role="img" aria-label="Horizontal bar chart of click share by search query">Loading…</canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ov-track-row">
+        <div class="card-title">Weekly ASIN share trend — tracked query</div>
+        <select id="trackedQuerySelect" onchange="renderTrackedChart()" style="font-size:12px;padding:4px 8px">
+          <option value="">— no tracked queries yet —</option>
+        </select>
+      </div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#3266ad"></span>Impressions ASIN Share %</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>Clicks ASIN Share %</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#EF9F27"></span>Cart Adds ASIN Share %</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#D85A30"></span>Purchases ASIN Share %</span>
+      </div>
+      <div id="noTrackedMsg" class="no-tracked">Track queries from the Price Scanner to compare ASIN share % over time.</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="lineOv" role="img" aria-label="ASIN share trend chart for tracked query">Loading…</canvas></div>
+    </div>
+  </div>
+
+  <!-- TREND EXPLORER -->
+  <div id="trend" class="panel">
+    <div class="card">
+      <div class="card-title">Trend explorer</div>
+      <div class="controls">
+        <label>Search Query:</label>
+        <select id="querySelect" onchange="renderTrend()"><option>— select —</option></select>
+        <label>Metric:</label>
+        <select id="metricSelect" onchange="renderTrend()">
+          <option value="sqv">Search Query Volume</option>
+          <option value="impTotal">Impressions: Total Count</option>
+          <option value="impAsin">Impressions: ASIN Count</option>
+          <option value="impShare">Impressions: ASIN Share %</option>
+          <option value="clkTotal">Clicks: Total Count</option>
+          <option value="clkRate">Clicks: Click Rate %</option>
+          <option value="clkAsin">Clicks: ASIN Count</option>
+          <option value="clkShare">Clicks: ASIN Share %</option>
+          <option value="clkPrice">Clicks: Price (Median)</option>
+          <option value="clkAsinPrice">Clicks: ASIN Price (Median)</option>
+          <option value="atcTotal">Cart Adds: Total Count</option>
+          <option value="atcRate">Cart Adds: Cart Add Rate %</option>
+          <option value="atcAsin">Cart Adds: ASIN Count</option>
+          <option value="atcShare">Cart Adds: ASIN Share %</option>
+          <option value="atcPrice">Cart Adds: Price (Median)</option>
+          <option value="atcAsinPrice">Cart Adds: ASIN Price (Median)</option>
+          <option value="purTotal">Purchases: Total Count</option>
+          <option value="purRate">Purchases: Purchase Rate %</option>
+          <option value="purAsin">Purchases: ASIN Count</option>
+          <option value="purShare">Purchases: ASIN Share %</option>
+          <option value="purPrice">Purchases: Price (Median)</option>
+          <option value="purAsinPrice">Purchases: ASIN Price (Median)</option>
+        </select>
+      </div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#3266ad"></span><span id="trendMetricLabel">Selected metric over time</span></span>
+      </div>
+      <div class="chart-wrap" style="height:280px"><canvas id="lineTrend" role="img" aria-label="Line chart of selected metric over reporting weeks">Select a query and metric</canvas></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">ASIN share % — <span id="multiQueryLabel" style="text-transform:none;font-style:italic">select a query above</span></div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#3266ad"></span>Impressions ASIN Share %</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>Clicks ASIN Share %</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#EF9F27"></span>Cart Adds ASIN Share %</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#D85A30"></span>Purchases ASIN Share %</span>
+      </div>
+      <div class="chart-wrap" style="height:240px"><canvas id="lineMulti" role="img" aria-label="Multi-line share chart for selected query">Select a query above</canvas></div>
+    </div>
+  </div>
+
+  <!-- PRICE SCANNER -->
+  <div id="price" class="panel">
+    <div class="card">
+      <div class="card-title">Price Scanner — top 50 queries vs ASIN price</div>
+      <div class="price-info">
+        <span class="price-chip">ASIN price: <strong id="asinPriceDisplay">$0.00</strong></span>
+        <span class="price-chip" id="rangeDisplay">Range: ±0% ($0.00 – $0.00)</span>
+        <span class="query-count" id="visibleCount">Showing 0 / 50 queries</span>
+      </div>
+      <div class="range-row" style="margin-bottom:10px">
+        <label>Sort queries by:</label>
+        <select id="priceSortMetric" onchange="updatePriceScanner()" style="font-size:12px;padding:5px 10px">
+          <option value="sqv">Search Query Volume</option>
+          <option value="sqScore">Search Query Score</option>
+          <option value="impTotal">Impressions: Total Count</option>
+          <option value="clkRate">Clicks: Click Rate %</option>
+          <option value="atcRate">Cart Adds: Cart Add Rate %</option>
+          <option value="purRate">Purchases: Purchase Rate %</option>
+        </select>
+        <span style="font-size:11px;color:var(--text-secondary)">(descending — top 50 shown)</span>
+      </div>
+      <div class="range-row">
+        <label>Price tolerance:</label>
+        <input type="range" id="priceRange" min="0" max="100" step="1" value="20" oninput="updatePriceScanner()">
+        <span class="range-val" id="pctVal">20%</span>
+      </div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#3266ad"></span>Clicks: Price (Median)</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#EF9F27"></span>Cart Adds: Price (Median)</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>Purchases: Price (Median)</span>
+        <span class="leg-item" style="border-left:2px solid #D85A30;padding-left:5px">ASIN price line</span>
+      </div>
+      <div id="scatterWrap" style="position:relative">
+        <div class="chart-wrap" style="height:380px"><canvas id="scatterPrice" role="img" aria-label="Scatter plot of median prices across top 50 search queries">Loading…</canvas></div>
+
+        <div id="sqpTooltip">
+          <div class="tt-header">
+            <div class="tt-query" id="tt-query"></div>
+            <div class="tt-meta">
+              <span>Score: <strong id="tt-score"></strong></span>
+              <span>Volume: <strong id="tt-vol"></strong></span>
+            </div>
+          </div>
+          <div class="tt-price-row">
+            <span class="tt-price-chip">Clicks: <strong id="tt-clkp"></strong></span>
+            <span class="tt-price-chip">Cart Adds: <strong id="tt-atcp"></strong></span>
+            <span class="tt-price-chip">Purchases: <strong id="tt-purp"></strong></span>
+          </div>
+          <div class="tt-grid">
+            <div class="tt-section">Impressions</div>
+            <div class="tt-row"><span class="lbl">Total Count</span><span class="val" id="tt-impTotal"></span></div>
+            <div class="tt-row"><span class="lbl">ASIN Share %</span><span class="val" id="tt-impShare"></span></div>
+            <div class="tt-section">Clicks</div>
+            <div class="tt-row"><span class="lbl">Click Rate %</span><span class="val" id="tt-clkRate"></span></div>
+            <div class="tt-row"><span class="lbl">ASIN Share %</span><span class="val" id="tt-clkShare"></span></div>
+            <div class="tt-section">Cart Adds</div>
+            <div class="tt-row"><span class="lbl">Cart Add Rate %</span><span class="val" id="tt-atcRate"></span></div>
+            <div class="tt-row"><span class="lbl">ASIN Share %</span><span class="val" id="tt-atcShare"></span></div>
+            <div class="tt-section">Purchases</div>
+            <div class="tt-row"><span class="lbl">Purchase Rate %</span><span class="val" id="tt-purRate"></span></div>
+            <div class="tt-row"><span class="lbl">ASIN Share %</span><span class="val" id="tt-purShare"></span></div>
+          </div>
+          <div class="tt-footer">
+            <button class="track-btn" id="tt-trackBtn" onclick="trackCurrentQuery()">+ Track</button>
+            <span class="track-tag" id="tt-trackTag">✓ Tracked</span>
+            <span class="tt-limit-msg" id="tt-limitMsg">Max 5 queries reached</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-secondary);margin-top:8px">Click any dot to inspect query details. Click outside to dismiss.</p>
+    </div>
+  </div>
+
+  <!-- TRACKED KEYWORDS -->
+  <div id="tracked" class="panel">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">Tracked Keywords</div>
+          <p style="font-size:12px;color:var(--text-secondary)">Up to 5 keywords. Tracked across sessions via browser storage.</p>
+        </div>
+        <button class="file-btn" style="color:#D85A30;border-color:#D85A30" onclick="clearAllTracked()">Clear all</button>
+      </div>
+      <div id="trackedListEmpty" style="font-size:13px;color:var(--text-secondary);font-style:italic;padding:24px 0;text-align:center;display:none">No tracked keywords yet — click the Track button on any dot in the Price Scanner.</div>
+      <div id="trackedList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">Market Penetration</div>
+          <div style="font-size:11px;color:var(--text-secondary)" id="funnelWeekLabel"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;display:inline-block;background:rgba(50,102,173,0.22);border:1px solid #3266ad66"></span>Market total</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;display:inline-block;background:#3266ad"></span>ASIN share (water level)</span>
+        </div>
+      </div>
+      <div id="trackedPageNoMsg" class="no-tracked">Track keywords from the Price Scanner to view Market Penetration.</div>
+      <div id="funnelWrap" style="position:relative;width:100%;display:none">
+        <svg id="funnelSvg" width="100%" viewBox="0 0 600 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Market penetration funnel showing impressions clicks cart adds and purchases"></svg>
+        <div id="funnelTip" style="position:absolute;display:none;background:var(--bg-primary);border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;pointer-events:none;z-index:99;min-width:180px;box-shadow:0 4px 16px rgba(0,0,0,0.15)"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI INSIGHTS PANEL -->
+<div id="ai" class="panel">
+  <div class="ai-panel">
+    <div class="ai-panel-header">
+      <div class="ai-panel-title"><span class="ai-spark">✦</span> AI Insights — Powered by DeepSeek (via OpenRouter)</div>
+    </div>
+
+    <!-- Analysis scope selector -->
+    <div class="ai-scope-row">
+      <label>Analyse:</label>
+      <select id="aiScope" style="font-size:12px;padding:5px 10px">
+        <option value="overview">Overview — top queries summary</option>
+        <option value="funnel">Funnel gaps — where ASIN loses share</option>
+        <option value="price">Price competitiveness</option>
+        <option value="trends">Week-over-week trends</option>
+        <option value="opportunities">Growth opportunities</option>
+      </select>
+      <button class="ai-btn" id="aiGenerateBtn" onclick="generateAiInsight()">Generate Insight</button>
+    </div>
+
+    <!-- Output area -->
+    <div id="aiOutput" class="ai-output" style="display:none"></div>
+
+    <div class="ai-disclosure" id="aiDisclosure" style="display:none">
+      ℹ️ AI insights send a summary of your query data (query names, share %, volumes) to a secure proxy server for AI processing. No personal or account data is included. Your CSV data itself never leaves your device.
+    </div>
+  </div>
+
+  <!-- Query-level deep dive -->
+  <div class="ai-panel" id="aiQueryPanel" style="display:none">
+    <div class="ai-panel-header">
+      <div class="ai-panel-title"><span class="ai-spark">✦</span> Query Deep Dive</div>
+    </div>
+    <div class="ai-scope-row">
+      <label>Query:</label>
+      <select id="aiQuerySelect" style="font-size:12px;padding:5px 10px;max-width:260px"></select>
+      <button class="ai-btn" onclick="generateQueryDive()">Analyse Query</button>
+    </div>
+    <div id="aiQueryOutput" class="ai-output" style="display:none"></div>
+  </div>
+</div> — replaces browser confirm() which is blocked in iframes -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center">
+  <div style="background:var(--bg-primary);border:0.5px solid var(--border-secondary);border-radius:var(--radius-lg);padding:24px 28px;max-width:380px;width:calc(100% - 40px);box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+    <div style="font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:8px" id="modalTitle">Are you sure?</div>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:20px" id="modalBody"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="modalResolve(false)" style="padding:8px 18px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer">No, cancel</button>
+      <button id="modalConfirmBtn" onclick="modalResolve(true)" style="padding:8px 18px;border:none;border-radius:var(--radius-md);background:#D85A30;color:#fff;font-size:13px;font-weight:500;cursor:pointer">Yes, remove</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let sqpData=[], weeks=[], queries=[], asinPrice=29.99, charts={}, trackedQueries=[], currentTooltipQuery=null, weekLabels={}, isSampleData=false;
+
+/* ── Custom modal (replaces browser confirm() which is blocked in iframes) ── */
+let _modalCallback=null;
+function showConfirm(title, body, confirmLabel, onConfirm){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').textContent=body;
+  document.getElementById('modalConfirmBtn').textContent=confirmLabel;
+  _modalCallback=onConfirm;
+  const m=document.getElementById('confirmModal');
+  m.style.display='flex';
+}
+function modalResolve(confirmed){
+  document.getElementById('confirmModal').style.display='none';
+  if(confirmed&&_modalCallback) _modalCallback();
+  _modalCallback=null;
+}
+
+const METRICS={
+  sqv:'Search Query Volume',impTotal:'Imp: Total Count',impAsin:'Imp: ASIN Count',impShare:'Imp: ASIN Share %',
+  clkTotal:'Clk: Total Count',clkRate:'Clk: Click Rate %',clkAsin:'Clk: ASIN Count',clkShare:'Clk: ASIN Share %',
+  clkPrice:'Clk: Price (Median)',clkAsinPrice:'Clk: ASIN Price (Median)',
+  atcTotal:'ATC: Total Count',atcRate:'ATC: Cart Add Rate %',atcAsin:'ATC: ASIN Count',atcShare:'ATC: ASIN Share %',
+  atcPrice:'ATC: Price (Median)',atcAsinPrice:'ATC: ASIN Price (Median)',
+  purTotal:'Pur: Total Count',purRate:'Pur: Purchase Rate %',purAsin:'Pur: ASIN Count',purShare:'Pur: ASIN Share %',
+  purPrice:'Pur: Price (Median)',purAsinPrice:'Pur: ASIN Price (Median)'
+};
+
+function generateSample(){
+  const qs=['wireless earbuds','bluetooth headphones','noise cancelling buds','sport earbuds',
+    'running headphones','earbuds with mic','gaming headphones','waterproof earbuds',
+    'true wireless earbuds','over ear headphones','studio headphones','workout earbuds',
+    'earbuds for iphone','usb-c headphones','foldable headphones','kids headphones',
+    'bass earbuds','bone conduction headphones','open ear headphones','sleep earbuds'];
+  const ws=['2024-10-06','2024-10-13','2024-10-20','2024-10-27','2024-11-03','2024-11-10','2024-11-17','2024-11-24'];
+  const rows=[];
+  qs.forEach((q,qi)=>{
+    ws.forEach((w,wi)=>{
+      const base=Math.random()*0.3+0.05, trend=wi*0.004;
+      const vol=Math.round(10000-qi*300+Math.random()*2000);
+      rows.push({
+        week:w,query:q,sqv:vol,
+        impTotal:Math.round(vol*0.8),impAsin:Math.round(vol*base*0.6),impShare:parseFloat(((base+trend)*100).toFixed(2)),
+        clkTotal:Math.round(vol*0.05),clkAsin:Math.round(vol*base*0.04),clkShare:parseFloat(((base+trend)*0.85*100).toFixed(2)),
+        clkRate:parseFloat((Math.random()*5+1).toFixed(2)),clkPrice:parseFloat((asinPrice*(1+(Math.random()-.5)*.6)).toFixed(2)),
+        clkAsinPrice:parseFloat((asinPrice*(1+(Math.random()-.5)*.3)).toFixed(2)),
+        atcTotal:Math.round(vol*0.02),atcAsin:Math.round(vol*base*0.015),atcShare:parseFloat(((base+trend)*.7*100).toFixed(2)),
+        atcRate:parseFloat((Math.random()*3+.5).toFixed(2)),atcPrice:parseFloat((asinPrice*(1+(Math.random()-.5)*.5)).toFixed(2)),
+        atcAsinPrice:parseFloat((asinPrice*(1+(Math.random()-.5)*.25)).toFixed(2)),
+        purTotal:Math.round(vol*0.008),purAsin:Math.round(vol*base*0.006),purShare:parseFloat(((base+trend)*.6*100).toFixed(2)),
+        purRate:parseFloat((Math.random()*2+.3).toFixed(2)),purPrice:parseFloat((asinPrice*(1+(Math.random()-.5)*.4)).toFixed(2)),
+        purAsinPrice:parseFloat((asinPrice*(1+(Math.random()-.5)*.2)).toFixed(2))
+      });
+    });
+  });
+  return rows;
+}
+
+function _loadSampleDataLegacy(){sqpData=generateSample();weekLabels={};processData();showStatus('Sample data loaded — 20 queries × 8 weeks (Oct–Nov 2024)');}
+
+function showStatus(msg){
+  const el=document.getElementById('statusMsg');
+  el.textContent=msg;el.style.opacity='1';
+  setTimeout(()=>{el.style.opacity='0';},3000);
+}
+
+function handleCSV(e){ handleMultipleCSV(e); }
+
+/*
+ * WHY WE NEED A SPECIAL DATE PARSER
+ * -----------------------------------
+ * Amazon SQP CSVs use the date of the week-ending Sunday as the "Reporting Date".
+ * Depending on the seller's locale setting, the same week can appear as:
+ *   • 2024-01-07      (ISO 8601 — most common)
+ *   • 1/7/2024        (US locale — M/D/YYYY)
+ *   • 07/01/2024      (EU locale — D/M/YYYY)
+ *   • 07-Jan-2024     (some exports)
+ *   • Jan 7, 2024
+ *
+ * JavaScript's built-in .sort() sorts strings alphabetically, so:
+ *   "1/7/2024"  < "10/6/2024" < "2/4/2024"  ← WRONG (10 sorts before 2)
+ *   "2024-01-07" < "2024-02-04" < "2024-12-29" ← correct (ISO sorts fine)
+ *
+ * The fix: parse every date string into a real JS Date timestamp (a number),
+ * then sort by that number. Numbers always sort correctly.
+ *
+ * We also NORMALISE every date to "YYYY-MM-DD" so that even if the user
+ * uploads one file in US format and another in ISO format, all weeks
+ * merge into the same key space.
+ */
+
+function parseDateToTimestamp(str){
+  if(!str) return 0;
+  str=str.trim();
+  /* Already ISO: 2024-01-07 */
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return new Date(str+'T00:00:00').getTime();
+  /* US: 1/7/2024 or 01/07/2024 */
+  const us=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(us) return new Date(+us[3],+us[1]-1,+us[2]).getTime();
+  /* EU: 07-01-2024 or 7-1-2024 (day-month-year with dashes) */
+  const eu=str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if(eu) return new Date(+eu[3],+eu[2]-1,+eu[1]).getTime();
+  /* Named month: 07-Jan-2024 or Jan 7, 2024 */
+  const d=new Date(str);
+  if(!isNaN(d)) return d.getTime();
+  return 0;
+}
+
+function normaliseDateToISO(str){
+  /* Converts any supported date format to "YYYY-MM-DD" */
+  const ts=parseDateToTimestamp(str);
+  if(!ts) return str; /* fall back to original if we can't parse */
+  const d=new Date(ts);
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseCSV(text){
+  /* Strip UTF-8 BOM if present */
+  text=text.replace(/^\uFEFF/,'');
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim()!=='');
+  const delim=lines[0].includes('\t')?'\t':',';
+
+  const HEADER_MARKERS=['Search Query','Reporting Date','Search Query Volume'];
+  let headerLineIdx=0;
+  for(let i=0;i<Math.min(3,lines.length);i++){
+    const firstCell=lines[i].split(delim)[0].trim().replace(/^"|"$/g,'');
+    if(HEADER_MARKERS.some(h=>firstCell===h)){headerLineIdx=i;break;}
+  }
+
+  /* Extract ASIN from metadata row if present (e.g. ASIN or Product=["B07W4M3797"]) */
+  let detectedAsin=null;
+  if(headerLineIdx>0){
+    const metaLine=lines[0];
+    const asinMatch=metaLine.match(/ASIN[^=]*=\["?([A-Z0-9]{10})"?\]/i);
+    if(asinMatch) detectedAsin=asinMatch[1];
+  }
+
+  const headers=lines[headerLineIdx].split(delim).map(h=>h.trim().replace(/^"|"$/g,''));
+  const rows=lines.slice(headerLineIdx+1).map(l=>{
+    const vals=l.split(delim).map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={}; headers.forEach((h,i)=>obj[h]=vals[i]||''); return obj;
+  }).filter(obj=>Object.values(obj).some(v=>v!==''));
+
+  return {rows, detectedAsin};
+}
+
+const CSV_MAP={
+  'Reporting Date':'week','Search Query':'query','Search Query Volume':'sqv','Search Query Score':'sqScore',
+  'Impressions: Total Count':'impTotal','Impressions: ASIN Count':'impAsin','Impressions: ASIN Share %':'impShare',
+  'Clicks: Total Count':'clkTotal','Clicks: Click Rate %':'clkRate','Clicks: ASIN Count':'clkAsin','Clicks: ASIN Share %':'clkShare',
+  'Clicks: Price (Median)':'clkPrice','Clicks: ASIN Price (Median)':'clkAsinPrice',
+  'Cart Adds: Total Count':'atcTotal','Cart Adds: Cart Add Rate %':'atcRate','Cart Adds: ASIN Count':'atcAsin','Cart Adds: ASIN Share %':'atcShare',
+  'Cart Adds: Price (Median)':'atcPrice','Cart Adds: ASIN Price (Median)':'atcAsinPrice',
+  'Purchases: Total Count':'purTotal','Purchases: Purchase Rate %':'purRate','Purchases: ASIN Count':'purAsin','Purchases: ASIN Share %':'purShare',
+  'Purchases: Price (Median)':'purPrice','Purchases: ASIN Price (Median)':'purAsinPrice'
+};
+
+function mapCSVRows(rows){
+  return rows.map(r=>{
+    const obj={};
+    Object.entries(CSV_MAP).forEach(([csv,key])=>{
+      let v=r[csv]||'';
+      if(key==='week'){
+        /* Normalise every date to ISO "YYYY-MM-DD" so all files share one key space */
+        obj[key]=normaliseDateToISO(v);
+      } else {
+        obj[key]=isNaN(parseFloat(v))?v:parseFloat(v);
+      }
+    });
+    return obj;
+  }).filter(r=>r.week&&r.query); /* drop rows without a date or query */
+}
+
+function sortWeeks(weekArray){
+  /* Convert every week string to a timestamp first, then sort numerically.
+     This guarantees chronological order regardless of upload sequence or
+     any edge-case date formats that partially survived normalisation. */
+  return [...weekArray].sort((a,b)=>{
+    const ta=parseDateToTimestamp(a)||new Date(a).getTime()||0;
+    const tb=parseDateToTimestamp(b)||new Date(b).getTime()||0;
+    return ta-tb;
+  });
+}
+
+function formatWeekLabel(isoDate){
+  /*
+   * Turn "2024-01-07" into a human-readable label like "Jan 7, 2024".
+   * This is what appears on chart axes — much friendlier than raw ISO strings.
+   */
+  const ts=parseDateToTimestamp(isoDate);
+  if(!ts) return isoDate;
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+/* weekLabels maps each ISO week key → display label for chart axes */
+
+function processData(){
+  /*
+   * De-duplicate and sort weeks using real date comparison (not string sort).
+   * This is the critical step: even if the user uploads weeks in random order
+   * (e.g. Week 40 then Week 52 then Week 44), the charts will always show
+   * them left-to-right in chronological order.
+   */
+  const rawWeeks=[...new Set(sqpData.map(r=>r.week))];
+  weeks=sortWeeks(rawWeeks);
+
+  /* Build display labels for chart axes */
+  weekLabels={};
+  weeks.forEach(w=>{ weekLabels[w]=formatWeekLabel(w); });
+
+  /* Sort queries by total search volume descending (most searched first) */
+  const volByQuery={};
+  sqpData.forEach(r=>{ volByQuery[r.query]=(volByQuery[r.query]||0)+(r.sqv||0); });
+  queries=[...new Set(sqpData.map(r=>r.query))].sort((a,b)=>(volByQuery[b]||0)-(volByQuery[a]||0));
+
+  const sel=document.getElementById('querySelect');
+  sel.innerHTML='';
+  queries.forEach(q=>{const o=document.createElement('option');o.value=q;o.textContent=q;sel.appendChild(o);});
+  inferAsinPrice();
+  loadTracked();
+  updateTrackedDropdown();
+  updateTrackedBadge();
+  renderOverview();
+  renderTrend();
+  updatePriceScanner();
+  populateAiQuerySelect();
+}
+
+function inferAsinPrice(){
+  const prices=sqpData.map(r=>r.clkAsinPrice||r.atcAsinPrice||r.purAsinPrice).filter(v=>v>0);
+  if(prices.length) asinPrice=parseFloat((prices.reduce((a,b)=>a+b,0)/prices.length).toFixed(2));
+  document.getElementById('asinPriceDisplay').textContent='$'+asinPrice.toFixed(2);
+}
+
+function getRows(query,week){
+  if(query&&week) return sqpData.filter(r=>r.query===query&&r.week===week);
+  if(query) return sqpData.filter(r=>r.query===query);
+  if(week) return sqpData.filter(r=>r.week===week);
+  return sqpData;
+}
+function getLatestWeek(){return weeks[weeks.length-1]||null;}
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function isDark(){return matchMedia('(prefers-color-scheme: dark)').matches;}
+function tickColor(){return isDark()?'#888':'#666';}
+
+function renderOverview(){
+  const lw=getLatestWeek(); if(!lw) return;
+  const topQ=queries[0];
+  const r0=getRows(topQ,lw)[0]||{};
+  document.getElementById('ov1').textContent=(r0.impShare||0).toFixed(2)+'%';
+  document.getElementById('ov2').textContent=(r0.clkShare||0).toFixed(2)+'%';
+  document.getElementById('ov3').textContent=(r0.atcShare||0).toFixed(2)+'%';
+  document.getElementById('ov4').textContent=(r0.purShare||0).toFixed(2)+'%';
+  document.getElementById('ov1d').textContent='↑ impressions share';
+  document.getElementById('ov2d').textContent='↑ clicks share';
+  document.getElementById('ov3d').textContent='↓ cart add share';
+  document.getElementById('ov4d').textContent='↑ purchase share';
+
+  const topN=queries.slice(0,8);
+  const latestByQ=topN.map(q=>{const rows=getRows(q,lw);return rows.length?rows[0]:{impShare:0,clkShare:0};});
+  renderBar('barImp','Imp Share %',topN,latestByQ.map(r=>parseFloat((r.impShare||0).toFixed(2))));
+  renderBar('barClk','Clk Share %',topN,latestByQ.map(r=>parseFloat((r.clkShare||0).toFixed(2))),true);
+
+  const ovRows=weeks.map(w=>{const rows=getRows(topQ,w);return rows.length?rows[0]:{impShare:0,clkShare:0,atcShare:0,purShare:0};});
+  renderTrackedChart();
+}
+
+function weekDisplayLabels(){ return weeks.map(w=>weekLabels[w]||w); }
+
+function renderBar(id,label,labels,data,green=false){
+  destroyChart(id);
+  const base=green?[29,158,117]:[50,102,173];
+  const colors=labels.map((_,i)=>`rgba(${base[0]},${base[1]},${base[2]},${1-i*0.09})`);
+  charts[id]=new Chart(document.getElementById(id),{
+    type:'bar',
+    data:{labels:labels.map(q=>q.length>18?q.slice(0,17)+'…':q),datasets:[{label,data,backgroundColor:colors,borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:11},color:tickColor(),callback:v=>v.toFixed(1)+'%'}},y:{ticks:{font:{size:10},color:tickColor()}}}}
+  });
+}
+
+function renderTrend(){
+  const q=document.getElementById('querySelect').value;
+  const m=document.getElementById('metricSelect').value;
+  if(!q||!weeks.length) return;
+  document.getElementById('trendMetricLabel').textContent=METRICS[m]||m;
+  const tdata=weeks.map(w=>{const rows=getRows(q,w);return rows.length?parseFloat((rows[0][m]||0).toFixed(3)):0;});
+  destroyChart('lineTrend');
+  charts['lineTrend']=new Chart(document.getElementById('lineTrend'),{
+    type:'line',
+    data:{labels:weekDisplayLabels(),datasets:[{label:METRICS[m],data:tdata,borderColor:'#3266ad',backgroundColor:'rgba(50,102,173,0.1)',tension:0.4,fill:true,borderWidth:2.5,pointRadius:4,pointHoverRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>METRICS[m]+': '+c.parsed.y}}},
+      scales:{x:{ticks:{font:{size:11},color:tickColor(),maxRotation:45,autoSkip:false}},y:{ticks:{font:{size:11},color:tickColor()}}}}
+  });
+
+  document.getElementById('multiQueryLabel').textContent=q;
+  const md=weeks.map(w=>{const rows=getRows(q,w);return rows.length?rows[0]:{impShare:0,clkShare:0,atcShare:0,purShare:0};});
+  destroyChart('lineMulti');
+  charts['lineMulti']=new Chart(document.getElementById('lineMulti'),{
+    type:'line',
+    data:{labels:weekDisplayLabels(),datasets:[
+      {label:'Impressions ASIN Share %',data:md.map(r=>parseFloat((r.impShare||0).toFixed(2))),borderColor:'#3266ad',tension:0.4,borderWidth:2,pointRadius:3,borderDash:[]},
+      {label:'Clicks ASIN Share %',data:md.map(r=>parseFloat((r.clkShare||0).toFixed(2))),borderColor:'#1D9E75',tension:0.4,borderWidth:2,pointRadius:3,borderDash:[5,3]},
+      {label:'Cart Adds ASIN Share %',data:md.map(r=>parseFloat((r.atcShare||0).toFixed(2))),borderColor:'#EF9F27',tension:0.4,borderWidth:2,pointRadius:3,borderDash:[2,4]},
+      {label:'Purchases ASIN Share %',data:md.map(r=>parseFloat((r.purShare||0).toFixed(2))),borderColor:'#D85A30',tension:0.4,borderWidth:2,pointRadius:3,borderDash:[8,3]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(2)+'%'}}
+      },
+      scales:{x:{ticks:{font:{size:11},color:tickColor(),maxRotation:45,autoSkip:false}},y:{ticks:{font:{size:11},color:tickColor(),callback:v=>v.toFixed(1)+'%'}}}}
+  });
+}
+
+const ttEl=document.getElementById('sqpTooltip');
+let ttVisible=false;
+
+const STORAGE_KEY='sqp_tracked_queries';
+
+function saveTracked(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(trackedQueries));}catch(e){}
+}
+function loadTracked(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){const arr=JSON.parse(raw);if(Array.isArray(arr))trackedQueries=arr.slice(0,5);}
+  }catch(e){}
+}
+
+function trackCurrentQuery(){
+  if(!currentTooltipQuery) return;
+  const q=currentTooltipQuery;
+  if(trackedQueries.includes(q)) return;
+  if(trackedQueries.length>=5) return;
+  trackedQueries.push(q);
+  saveTracked();
+  updateTrackedDropdown();
+  renderTrackedList();
+  renderTrackedChart();
+  updateTrackBtnState(q);
+  updateTrackedBadge();
+}
+
+function updateTrackedBadge(){
+  const b=document.getElementById('trackedBadge');
+  if(b) b.textContent=trackedQueries.length;
+}
+
+function updateTrackedDropdown(){
+  ['trackedQuerySelect'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const prev=sel.value;
+    sel.innerHTML='';
+    if(!trackedQueries.length){
+      const o=document.createElement('option');
+      o.value=''; o.textContent='— no tracked queries yet —';
+      sel.appendChild(o); return;
+    }
+    trackedQueries.forEach(q=>{
+      const o=document.createElement('option');
+      o.value=q; o.textContent=q; sel.appendChild(o);
+    });
+    sel.value=trackedQueries.includes(prev)?prev:trackedQueries[0];
+  });
+}
+
+function renderTrackedList(){
+  const list=document.getElementById('trackedList');
+  const empty=document.getElementById('trackedListEmpty');
+  if(!list) return;
+  list.innerHTML='';
+  if(!trackedQueries.length){
+    if(empty) empty.style.display='block';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  const lw=getLatestWeek();
+  trackedQueries.forEach((q,idx)=>{
+    const r=lw?(getRows(q,lw)[0]||null):null;
+    const item=document.createElement('div');
+    item.className='tracked-item';
+    const rankNum=queries.indexOf(q);
+    const rank=rankNum>=0?'#'+(rankNum+1):'—';
+    item.innerHTML=`
+      <div class="tracked-item-name">${q}</div>
+      <div class="tracked-item-meta">
+        <span>Rank: <strong>${rank}</strong></span>
+        <span>Vol: <strong>${r&&r.sqv?r.sqv.toLocaleString():'—'}</strong></span>
+        <span>Imp Share: <strong>${r&&r.impShare!=null?r.impShare.toFixed(1)+'%':'—'}</strong></span>
+        <span>Clk Share: <strong>${r&&r.clkShare!=null?r.clkShare.toFixed(1)+'%':'—'}</strong></span>
+        <span>Pur Share: <strong>${r&&r.purShare!=null?r.purShare.toFixed(1)+'%':'—'}</strong></span>
+      </div>
+      <button class="tracked-item-remove" onclick="removeTrackedQuery('${q.replace(/'/g,"\\'")}')">Remove</button>`;
+    list.appendChild(item);
+  });
+  const counter=document.createElement('p');
+  counter.style.cssText='font-size:11px;color:var(--text-secondary);margin-top:8px';
+  counter.textContent=`${trackedQueries.length} / 5 slots used`;
+  list.appendChild(counter);
+}
+
+function removeTrackedQuery(q){
+  trackedQueries=trackedQueries.filter(x=>x!==q);
+  saveTracked();
+  updateTrackedDropdown();
+  updateTrackedBadge();
+  renderTrackedList();
+  renderTrackedChart();
+  renderTrackedPageChart();
+  if(currentTooltipQuery===q) updateTrackBtnState(q);
+}
+
+function clearAllTracked(){
+  if(!trackedQueries.length){showStatus('No tracked keywords to remove');return;}
+  showConfirm(
+    'Remove tracked keywords',
+    `Remove all ${trackedQueries.length} tracked keyword${trackedQueries.length>1?'s':''}? This cannot be undone.`,
+    'Yes, remove',
+    ()=>{
+      trackedQueries=[];
+      saveTracked();
+      updateTrackedDropdown();
+      updateTrackedBadge();
+      renderTrackedList();
+      renderTrackedChart();
+      renderTrackedPageChart();
+      if(currentTooltipQuery) updateTrackBtnState(currentTooltipQuery);
+      showStatus('Tracked keywords cleared');
+    }
+  );
+}
+
+function renderTrackedPageChart(){
+  const noMsg=document.getElementById('trackedPageNoMsg');
+  const wrap=document.getElementById('funnelWrap');
+  if(!trackedQueries.length||!weeks.length){
+    if(noMsg) noMsg.style.display='block';
+    if(wrap) wrap.style.display='none';
+    return;
+  }
+
+  const lw=getLatestWeek();
+  if(!lw){
+    if(noMsg){noMsg.textContent='No reporting weeks found in data.';noMsg.style.display='block';}
+    if(wrap) wrap.style.display='none';
+    return;
+  }
+
+  if(noMsg) noMsg.style.display='none';
+  if(wrap) wrap.style.display='block';
+
+  /* update subtitle with latest week */
+  const subtitle=document.getElementById('funnelWeekLabel');
+  if(subtitle) subtitle.textContent='Latest week: '+lw;
+
+  let totals={impTotal:0,impAsin:0,clkTotal:0,clkAsin:0,atcTotal:0,atcAsin:0,purTotal:0,purAsin:0};
+  trackedQueries.forEach(q=>{
+    const rows=getRows(q,lw);
+    if(!rows.length) return;
+    const r=rows[0];
+    totals.impTotal+=(r.impTotal||0);
+    totals.impAsin+=(r.impAsin||0);
+    totals.clkTotal+=(r.clkTotal||0);
+    totals.clkAsin+=(r.clkAsin||0);
+    totals.atcTotal+=(r.atcTotal||0);
+    totals.atcAsin+=(r.atcAsin||0);
+    totals.purTotal+=(r.purTotal||0);
+    totals.purAsin+=(r.purAsin||0);
+  });
+
+  const stages=[
+    {name:'Impressions', total:totals.impTotal, asin:totals.impAsin, light:'rgba(50,102,173,0.22)', dark:'#3266ad', stroke:'#4a7ec4'},
+    {name:'Clicks',      total:totals.clkTotal, asin:totals.clkAsin, light:'rgba(29,158,117,0.22)', dark:'#1D9E75', stroke:'#2ab88a'},
+    {name:'Cart Adds',   total:totals.atcTotal, asin:totals.atcAsin, light:'rgba(239,159,39,0.22)', dark:'#EF9F27', stroke:'#f0ae45'},
+    {name:'Purchases',   total:totals.purTotal, asin:totals.purAsin, light:'rgba(216,90,48,0.22)',   dark:'#D85A30', stroke:'#e06d44'}
+  ];
+
+  /* SVG canvas */
+  const W=560, H=360;
+  const N=stages.length;
+  /* funnel outer left/right edges — converging trapezoid */
+  const topW=460, botW=160, padTop=24, padBot=24;
+  const funnelH=H-padTop-padBot;
+  /* each band occupies equal height; small gap between */
+  const bandH=Math.floor((funnelH-6*(N-1))/N); /* 6px gap */
+  const gap=6;
+  /* label area to the right */
+  const labelX=W-4;
+
+  /* helper: x-coords of the funnel outline at a given y fraction (0=top,1=bottom) */
+  function funnelX(frac){
+    const halfW=(topW+(botW-topW)*frac)/2;
+    return {l:W/2-halfW, r:W/2+halfW};
+  }
+
+  let defs='<defs>';
+  let body='';
+
+  stages.forEach((s,i)=>{
+    const frac0=i*(bandH+gap)/funnelH;
+    const frac1=(i*(bandH+gap)+bandH)/funnelH;
+    const y0=padTop+i*(bandH+gap);
+    const y1=y0+bandH;
+    const {l:l0,r:r0}=funnelX(frac0);
+    const {l:l1,r:r1}=funnelX(frac1);
+
+    const share=s.total>0?(s.asin/s.total):0;
+    const sharePct=(share*100).toFixed(1);
+
+    /* trapezoid path for this band */
+    const trap=`M${l0.toFixed(1)},${y0} L${r0.toFixed(1)},${y0} L${r1.toFixed(1)},${y1} L${l1.toFixed(1)},${y1} Z`;
+
+    /* water-level clipPath: fill from bottom up by share% of band height */
+    const fillH=bandH*share;
+    const fillY=y1-fillH; /* top of the filled region */
+    /* at fillY the funnel fraction */
+    const fillFrac=(fillY-padTop)/funnelH;
+    const fillFrac2=frac1;
+    const {l:lf0,r:rf0}=funnelX(Math.max(0,Math.min(1,fillFrac)));
+    const {l:lf1,r:rf1}=funnelX(fillFrac2);
+    /* clip to the fill trapezoid */
+    const clipId=`clip${i}`;
+    defs+=`<clipPath id="${clipId}"><path d="M${lf0.toFixed(1)},${fillY.toFixed(1)} L${rf0.toFixed(1)},${fillY.toFixed(1)} L${rf1.toFixed(1)},${y1} L${lf1.toFixed(1)},${y1} Z"/></clipPath>`;
+
+    body+=`<g class="funnel-stage" data-idx="${i}" style="cursor:pointer">
+      <path d="${trap}" fill="${s.light}" stroke="${s.stroke}" stroke-width="1.2"/>
+      <path d="${trap}" fill="${s.dark}" opacity="0.9" clip-path="url(#${clipId})"/>
+      <text x="${(W/2).toFixed(1)}" y="${((y0+y1)/2).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="white" style="pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,0.5)">${s.name}</text>
+      <text x="${labelX}" y="${(y0+12).toFixed(1)}" text-anchor="end" font-size="11" fill="rgba(180,180,180,0.9)" style="pointer-events:none">${s.total.toLocaleString()}</text>
+      <text x="${labelX}" y="${(y0+26).toFixed(1)}" text-anchor="end" font-size="11" font-weight="600" fill="${s.dark}" style="pointer-events:none">ASIN ${sharePct}%</text>
+    </g>`;
+  });
+
+  /* funnel outline stroke (decorative) */
+  const {l:tl,r:tr}=funnelX(0);
+  const {l:bl,r:br}=funnelX(1);
+  body+=`<path d="M${tl.toFixed(1)},${padTop} L${bl.toFixed(1)},${(padTop+funnelH).toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" fill="none"/>
+         <path d="M${tr.toFixed(1)},${padTop} L${br.toFixed(1)},${(padTop+funnelH).toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" fill="none"/>`;
+
+  defs+='</defs>';
+  document.getElementById('funnelSvg').setAttribute('viewBox',`0 0 ${W} ${H}`);
+  document.getElementById('funnelSvg').innerHTML=defs+body;
+
+  const tip=document.getElementById('funnelTip');
+  const wrapEl=document.getElementById('funnelWrap');
+  document.querySelectorAll('.funnel-stage').forEach((el,i)=>{
+    const s=stages[i];
+    el.addEventListener('mouseenter',evt=>{
+      const sharePct=s.total>0?((s.asin/s.total)*100).toFixed(1):'0.0';
+      tip.innerHTML=`<div style="font-weight:500;font-size:13px;color:var(--text-primary);margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border-tertiary)">${s.name}</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;gap:20px"><span style="color:var(--text-secondary)">Total Count</span><strong>${s.total.toLocaleString()}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:20px"><span style="color:var(--text-secondary)">ASIN Count</span><strong style="color:${s.dark}">${s.asin.toLocaleString()}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:20px"><span style="color:var(--text-secondary)">ASIN Share</span><strong style="color:${s.dark}">${sharePct}%</strong></div>
+        </div>`;
+      tip.style.display='block';
+      positionFunnelTip(evt,wrapEl,tip);
+    });
+    el.addEventListener('mousemove',evt=>positionFunnelTip(evt,wrapEl,tip));
+    el.addEventListener('mouseleave',()=>{tip.style.display='none';});
+  });
+}
+
+function positionFunnelTip(evt,wrap,tip){
+  const wr=wrap.getBoundingClientRect();
+  const tw=tip.offsetWidth||190, th=tip.offsetHeight||110;
+  let left=evt.clientX-wr.left+14;
+  let top=evt.clientY-wr.top-20;
+  if(left+tw>wr.width-8) left=evt.clientX-wr.left-tw-14;
+  if(top+th>wr.height-8) top=wr.height-th-8;
+  if(top<4) top=4;
+  if(left<4) left=4;
+  tip.style.left=left+'px';
+  tip.style.top=top+'px';
+}
+
+function renderTrackedChart(){
+  const noMsg=document.getElementById('noTrackedMsg');
+  const sel=document.getElementById('trackedQuerySelect');
+  const q=sel?sel.value:'';
+  if(!q||!trackedQueries.length||!weeks.length){
+    if(noMsg) noMsg.style.display='block';
+    destroyChart('lineOv');
+    return;
+  }
+  if(noMsg) noMsg.style.display='none';
+  const md=weeks.map(w=>{const rows=getRows(q,w);return rows.length?rows[0]:{impShare:0,clkShare:0,atcShare:0,purShare:0};});
+  destroyChart('lineOv');
+  charts['lineOv']=new Chart(document.getElementById('lineOv'),{
+    type:'line',
+    data:{labels:weekDisplayLabels(),datasets:[
+      {label:'Impressions ASIN Share %',data:md.map(r=>parseFloat((r.impShare||0).toFixed(2))),borderColor:'#3266ad',backgroundColor:'rgba(50,102,173,0.07)',tension:0.4,fill:true,borderWidth:2,pointRadius:3,borderDash:[]},
+      {label:'Clicks ASIN Share %',data:md.map(r=>parseFloat((r.clkShare||0).toFixed(2))),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',tension:0.4,fill:true,borderWidth:2,pointRadius:3,borderDash:[5,3]},
+      {label:'Cart Adds ASIN Share %',data:md.map(r=>parseFloat((r.atcShare||0).toFixed(2))),borderColor:'#EF9F27',backgroundColor:'rgba(239,159,39,0.07)',tension:0.4,fill:true,borderWidth:2,pointRadius:3,borderDash:[2,4]},
+      {label:'Purchases ASIN Share %',data:md.map(r=>parseFloat((r.purShare||0).toFixed(2))),borderColor:'#D85A30',backgroundColor:'rgba(216,90,48,0.07)',tension:0.4,fill:true,borderWidth:2,pointRadius:3,borderDash:[8,3]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(2)+'%'}}},
+      scales:{x:{ticks:{font:{size:11},color:tickColor(),maxRotation:45,autoSkip:false}},y:{ticks:{font:{size:11},color:tickColor(),callback:v=>v.toFixed(1)+'%'}}}}
+  });
+}
+
+function setShareCell(elId, shareVal, rateVal){
+  const el=document.getElementById(elId);
+  const text=shareVal!=null?shareVal.toFixed(2)+'%':'—';
+  el.textContent=text;
+  el.className='val';
+  if(shareVal!=null&&rateVal!=null){
+    if(shareVal<rateVal) el.className='val-bad';
+    else if(shareVal>rateVal) el.className='val-good';
+  }
+}
+
+function updateTrackBtnState(query){
+  const btn=document.getElementById('tt-trackBtn');
+  const tag=document.getElementById('tt-trackTag');
+  const limitMsg=document.getElementById('tt-limitMsg');
+  const isTracked=trackedQueries.includes(query||'');
+  const atLimit=trackedQueries.length>=5;
+  btn.classList.remove('tracked','limit');
+  tag.style.display='none';
+  limitMsg.style.display='none';
+  btn.disabled=false;
+  if(isTracked){
+    btn.textContent='✓ Tracked';
+    btn.classList.add('tracked');
+    tag.style.display='inline';
+  } else if(atLimit){
+    btn.textContent='+ Track';
+    btn.classList.add('limit');
+    btn.disabled=true;
+    limitMsg.style.display='inline';
+  } else {
+    btn.textContent='+ Track';
+  }
+}
+
+function showTooltip(evt,r,clk,atc,pur){
+  currentTooltipQuery=r.query||null;
+  document.getElementById('tt-query').textContent=r.query||'—';
+  document.getElementById('tt-score').textContent=r.sqv?r.sqv.toLocaleString():'—';
+  document.getElementById('tt-vol').textContent=r.sqv?r.sqv.toLocaleString():'—';
+  document.getElementById('tt-clkp').textContent=clk>0?'$'+clk.toFixed(2):'—';
+  document.getElementById('tt-atcp').textContent=atc>0?'$'+atc.toFixed(2):'—';
+  document.getElementById('tt-purp').textContent=pur>0?'$'+pur.toFixed(2):'—';
+  document.getElementById('tt-impTotal').textContent=r.impTotal!=null?r.impTotal.toLocaleString():'—';
+  document.getElementById('tt-clkRate').textContent=r.clkRate!=null?r.clkRate.toFixed(2)+'%':'—';
+  document.getElementById('tt-atcRate').textContent=r.atcRate!=null?r.atcRate.toFixed(2)+'%':'—';
+  document.getElementById('tt-purRate').textContent=r.purRate!=null?r.purRate.toFixed(2)+'%':'—';
+  const impShare=r.impShare!=null?r.impShare:null;
+  document.getElementById('tt-impShare').textContent=impShare!=null?impShare.toFixed(2)+'%':'—';
+  setShareCell('tt-clkShare', r.clkShare, r.clkRate);
+  setShareCell('tt-atcShare', r.atcShare, r.atcRate);
+  setShareCell('tt-purShare', r.purShare, r.purRate);
+  updateTrackBtnState(r.query||'');
+  positionTooltip(evt);
+  ttEl.style.display='block';
+  ttVisible=true;
+}
+
+function positionTooltip(evt){
+  const wrap=document.getElementById('scatterWrap');
+  const wRect=wrap.getBoundingClientRect();
+  const tw=ttEl.offsetWidth||300, th=ttEl.offsetHeight||280;
+  const PAD=10;
+  const maxW=wRect.width, maxH=wRect.height;
+  const clickX=evt.clientX-wRect.left;
+  const clickY=evt.clientY-wRect.top;
+  let left=clickX+14;
+  let top=clickY-20;
+  if(left+tw>maxW-PAD) left=clickX-tw-14;
+  if(left<PAD) left=PAD;
+  if(top+th>maxH-PAD) top=maxH-th-PAD;
+  if(top<PAD) top=PAD;
+  ttEl.style.left=left+'px';
+  ttEl.style.top=top+'px';
+}
+
+function hideTooltip(){ttEl.style.display='none';ttVisible=false;}
+
+ttEl.addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('click',()=>hideTooltip());
+
+function updatePriceScanner(){
+  const pct=parseInt(document.getElementById('priceRange').value);
+  document.getElementById('pctVal').textContent=pct+'%';
+  const lo=asinPrice*(1-pct/100), hi=asinPrice*(1+pct/100);
+  document.getElementById('rangeDisplay').textContent=`Range: ±${pct}% ($${lo.toFixed(2)} – $${hi.toFixed(2)})`;
+
+  const sortMetric=(document.getElementById('priceSortMetric')||{}).value||'sqv';
+  const lw=getLatestWeek();
+
+  /* Build a value-per-query map for the chosen sort metric (latest week) */
+  const sortValByQuery={};
+  queries.forEach(q=>{
+    const rows=lw?getRows(q,lw):sqpData.filter(r=>r.query===q).slice(0,1);
+    sortValByQuery[q]=rows.length?(rows[0][sortMetric]||0):0;
+  });
+
+  /* Sort all queries by that metric descending, then take top 50 */
+  const sortedQueries=[...queries]
+    .sort((a,b)=>(sortValByQuery[b]||0)-(sortValByQuery[a]||0))
+    .slice(0,50);
+
+  /* Update x-axis title to reflect current sort */
+  const sortLabels={sqv:'Search Query Volume',sqScore:'Search Query Score',impTotal:'Impressions: Total Count',clkRate:'Clicks: Click Rate %',atcRate:'Cart Adds: Cart Add Rate %',purRate:'Purchases: Purchase Rate %'};
+  const axisTitle=`Query rank by ${sortLabels[sortMetric]||sortMetric} (descending)`;
+
+  const pts=[];
+  sortedQueries.forEach((q,qi)=>{
+    const rows=lw?getRows(q,lw):sqpData.filter(r=>r.query===q).slice(0,1);
+    if(!rows.length) return;
+    const r=rows[0];
+    const clk=parseFloat((r.clkPrice||0).toFixed(2));
+    const atc=parseFloat((r.atcPrice||0).toFixed(2));
+    const pur=parseFloat((r.purPrice||0).toFixed(2));
+    const inRange=v=>pct===100||(v>=lo&&v<=hi);
+    pts.push({qi,q,clk,atc,pur,r,inClk:inRange(clk),inAtc:inRange(atc),inPur:inRange(pur)});
+  });
+
+  const visible=pts.filter(p=>p.inClk||p.inAtc||p.inPur).length;
+  document.getElementById('visibleCount').textContent=`Showing ${visible} / ${pts.length} queries`;
+
+  const qLabels=pts.map(p=>p.q);
+
+  const toDS=(key,inKey,color,dsLabel)=>({
+    label:dsLabel,
+    data:pts.map((p,i)=>({x:i,y:p[key],q:p.q,r:p.r,clk:p.clk,atc:p.atc,pur:p.pur,in:p[inKey]})),
+    backgroundColor:pts.map(p=>p[inKey]?color+'cc':color+'28'),
+    borderColor:pts.map(p=>p[inKey]?color+'ee':'transparent'),
+    borderWidth:1,pointRadius:6,pointHoverRadius:9,type:'scatter'
+  });
+
+  destroyChart('scatterPrice');
+
+  const canvas=document.getElementById('scatterPrice');
+  charts['scatterPrice']=new Chart(canvas,{
+    type:'scatter',
+    data:{datasets:[
+      toDS('clk','inClk','#3266ad','Clicks: Price (Med)'),
+      toDS('atc','inAtc','#EF9F27','Cart Adds: Price (Med)'),
+      toDS('pur','inPur','#1D9E75','Purchases: Price (Med)'),
+      {label:'ASIN price',
+       data:pts.length?[{x:-0.5,y:asinPrice},{x:pts.length-0.5,y:asinPrice}]:[],
+       type:'line',borderColor:'#D85A30',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      onClick:(evt,elements)=>{
+        if(elements&&elements.length>0){
+          const el=elements[0];
+          const ds=charts['scatterPrice'].data.datasets[el.datasetIndex];
+          const dp=ds.data[el.index];
+          if(dp&&dp.r){showTooltip(evt.native,dp.r,dp.clk,dp.atc,dp.pur);evt.native.stopPropagation();}
+        }
+      },
+      scales:{
+        x:{
+          type:'linear',
+          title:{display:true,text:axisTitle,font:{size:11},color:tickColor()},
+          min:-0.5,max:pts.length-0.5,
+          ticks:{
+            font:{size:10},color:tickColor(),stepSize:1,
+            callback:v=>{
+              const i=Math.round(v);
+              if(i>=0&&i<qLabels.length){const lbl=qLabels[i];return lbl.length>14?lbl.slice(0,13)+'…':lbl;}
+              return '';
+            },
+            maxRotation:45,minRotation:30,autoSkip:true,maxTicksLimit:20
+          }
+        },
+        y:{
+          title:{display:true,text:'Price ($)',font:{size:12},color:tickColor()},
+          ticks:{font:{size:11},color:tickColor(),callback:v=>'$'+v.toFixed(0)},
+          min:Math.max(0,lo-asinPrice*.25),
+          max:hi+asinPrice*.25
+        }
+      }
+    }
+  });
+
+  canvas.style.cursor='pointer';
+}
+
+function switchTab(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='trend') renderTrend();
+  if(id==='price') updatePriceScanner();
+  if(id==='tracked'){renderTrackedList();renderTrackedPageChart();}
+}
+
+loadTracked();
+updateTrackedBadge();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INDEXEDDB PERSISTENCE LAYER
+   ─────────────────────────────────────────────────────────────────────────
+   WHY INDEXEDDB AND NOT LOCALSTORAGE?
+   localStorage can only hold ~5MB of text. A few months of SQP data for
+   even one ASIN can easily be 2–10MB. If we used localStorage, uploading
+   a large dataset would either silently fail or throw a quota error.
+
+   IndexedDB is a real database built into every modern browser. It can hold
+   hundreds of megabytes, persists across browser restarts, and is private to
+   this exact URL (so yourusername.github.io/sqp-dashboard has its own
+   isolated storage that no other website can read).
+
+   HOW IT WORKS (beginner explanation):
+   Think of IndexedDB like a filing cabinet inside the browser:
+   - The "cabinet" is opened once when the app loads (openDB)
+   - We have two "drawers": one for sqpData rows, one for settings
+   - Every time the user uploads a CSV, we save each row into the drawer
+   - Every time the app loads, we read all rows back out
+   - The user never sees any of this — it just happens automatically
+
+   THE FLOW:
+   1. Page loads → openDB() → reads all saved rows from IndexedDB
+   2. If rows exist → processData() → show dashboard (landing stays hidden)
+   3. If no rows → show landing screen (upload prompt)
+   4. User uploads CSV → merge rows → save new rows to IndexedDB → re-render
+   5. User closes browser → data stays in IndexedDB forever
+   6. User comes back days later → step 1 again, data is still there
+═══════════════════════════════════════════════════════════════════════════ */
+
+const DB_NAME='SQPAnalytics';
+const DB_VERSION=1;
+const STORE_ROWS='sqp_rows';
+const STORE_SETTINGS='settings';
+let db=null;
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=e=>{
+      /* This runs the first time the app is ever opened, or when DB_VERSION increases.
+         We create two object stores (think: database tables):
+         - sqp_rows: holds every SQP data row. Key is "query|week" — a unique combo.
+         - settings: holds small config values like asinPrice, lastTab. */
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE_ROWS)){
+        d.createObjectStore(STORE_ROWS,{keyPath:'_key'});
+      }
+      if(!d.objectStoreNames.contains(STORE_SETTINGS)){
+        d.createObjectStore(STORE_SETTINGS,{keyPath:'k'});
+      }
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve(db);};
+    req.onerror=e=>reject(e.target.error);
+  });
+}
+
+function dbSaveRows(newRows){
+  /* Save an array of rows to IndexedDB. Each row gets a _key = "query|week"
+     so re-uploading the same file never creates duplicates (the store just
+     overwrites the same key with the same value). */
+  if(!db||!newRows.length) return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE_ROWS,'readwrite');
+    const store=tx.objectStore(STORE_ROWS);
+    newRows.forEach(r=>{
+      store.put({...r,_key:r.query+'|'+r.week});
+    });
+    tx.oncomplete=resolve;
+    tx.onerror=e=>reject(e.target.error);
+  });
+}
+
+function dbLoadAllRows(){
+  /* Read every row from IndexedDB back into memory.
+     This is called once on startup — it populates sqpData. */
+  if(!db) return Promise.resolve([]);
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE_ROWS,'readonly');
+    const req=tx.objectStore(STORE_ROWS).getAll();
+    req.onsuccess=e=>{
+      /* Strip the internal _key field before handing rows to the app */
+      resolve(e.target.result.map(r=>{const c={...r};delete c._key;return c;}));
+    };
+    req.onerror=e=>reject(e.target.error);
+  });
+}
+
+function dbClearRows(){
+  if(!db) return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE_ROWS,'readwrite');
+    tx.objectStore(STORE_ROWS).clear();
+    tx.oncomplete=resolve;
+    tx.onerror=e=>reject(e.target.error);
+  });
+}
+
+function dbSaveSetting(key,value){
+  if(!db) return;
+  const tx=db.transaction(STORE_SETTINGS,'readwrite');
+  tx.objectStore(STORE_SETTINGS).put({k:key,v:value});
+}
+
+function dbLoadSetting(key){
+  if(!db) return Promise.resolve(null);
+  return new Promise(resolve=>{
+    const tx=db.transaction(STORE_SETTINGS,'readonly');
+    const req=tx.objectStore(STORE_SETTINGS).get(key);
+    req.onsuccess=e=>resolve(e.target.result?e.target.result.v:null);
+    req.onerror=()=>resolve(null);
+  });
+}
+
+/* ── Landing screen helpers ──────────────────────────────────────────────── */
+function showLanding(){document.getElementById('landing').style.display='block';}
+function hideLanding(){document.getElementById('landing').style.display='none';}
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor='';
+  document.getElementById('dropZone').style.background='';
+  const files=Array.from(e.dataTransfer.files).filter(f=>f.name.match(/\.(csv|tsv|txt)$/i));
+  if(files.length) processFileList(files);
+}
+
+function handleLandingUpload(e){
+  handleMultipleCSVFiles(Array.from(e.target.files));
+  e.target.value='';
+}
+
+/* ── Updated upload handler — saves to IndexedDB after merge ─────────────── */
+function handleMultipleCSV(e){
+  handleMultipleCSVFiles(Array.from(e.target.files));
+  e.target.value='';
+}
+
+function getCurrentTrackedAsin(){
+  /* Returns the ASIN currently loaded in the dashboard, or null if none / sample data */
+  if(isSampleData||!sqpData.length) return null;
+  const txt=document.getElementById('asinDisplay').textContent.replace('ASIN:','').trim();
+  return (txt&&txt!=='—'&&txt!=='B0DEMO12345')?txt:null;
+}
+
+
+function handleMultipleCSVFiles(files){
+  if(!files.length) return;
+
+  /* Read all files first, then validate ASINs before touching any state */
+  let loaded=0;
+  const parsed=[];
+
+  files.forEach((file,fi)=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      let result={rows:[],detectedAsin:null,fileName:file.name};
+      try{
+        const p=parseCSV(ev.target.result);
+        result.rows=p.rows;
+        result.detectedAsin=p.detectedAsin;
+      }catch(err){console.warn('Parse error in '+file.name+':',err.message);}
+      parsed[fi]=result;
+      loaded++;
+      if(loaded===files.length) validateAndMerge(parsed);
+    };
+    reader.readAsText(file);
+  });
+}
+
+function validateAndMerge(parsed){
+  const trackedAsin=getCurrentTrackedAsin();
+
+  if(trackedAsin){
+    const mismatched=parsed.filter(p=>p.detectedAsin&&p.detectedAsin!==trackedAsin);
+    if(mismatched.length){
+      const names=mismatched.map(p=>`• ${p.fileName} (ASIN: ${p.detectedAsin})`).join('\n');
+      const cancelBtn=document.querySelector('#confirmModal button:first-of-type');
+      const confirmBtn=document.getElementById('modalConfirmBtn');
+      /* Hide cancel, show only OK */
+      cancelBtn.style.display='none';
+      confirmBtn.style.display='';
+      showConfirm(
+        'Wrong ASIN — upload blocked',
+        `The following file${mismatched.length>1?'s are':' is'} for a different ASIN than the one already loaded (${trackedAsin}):\n\n${names}\n\nPlease upload the SQP report for ASIN ${trackedAsin} only.`,
+        'OK, got it',
+        ()=>{ cancelBtn.style.display=''; }
+      );
+      return;
+    }
+  }
+
+  mergeFiles(parsed);
+}
+
+function mergeFiles(parsed){
+  let totalAdded=0;
+  const rowsToSave=[];
+  let firstDetectedAsin=null;
+  const clearFirst=isSampleData;
+
+  const doMerge=(dataArray)=>{
+    dataArray.forEach(({rows:newRows,detectedAsin})=>{
+      if(!firstDetectedAsin&&detectedAsin) firstDetectedAsin=detectedAsin;
+      if(newRows.length>=1){
+        const mapped=mapCSVRows(newRows);
+        const existing=new Set(sqpData.map(r=>r.query+'|'+r.week));
+        mapped.forEach(r=>{
+          const key=r.query+'|'+r.week;
+          if(!existing.has(key)){sqpData.push(r);existing.add(key);totalAdded++;rowsToSave.push(r);}
+        });
+      }
+    });
+  };
+
+  const finish=()=>{
+    isSampleData=false;
+    weekLabels={};
+    if(firstDetectedAsin) updateAsinDisplay(firstDetectedAsin);
+    dbSaveRows(rowsToSave).then(()=>{
+      dbSaveSetting('asinPrice',asinPrice);
+      if(firstDetectedAsin) dbSaveSetting('detectedAsin',firstDetectedAsin);
+      processData();
+      hideLanding();
+      updateDataInfoBadge();
+      const wkCount=weeks.length;
+      showStatus(`${parsed.length} file${parsed.length>1?'s':''} loaded — ${totalAdded} new rows · ${wkCount} week${wkCount!==1?'s':''} total`);
+    });
+  };
+
+  if(clearFirst){
+    sqpData=[];
+    rowsToSave.length=0;
+    doMerge(parsed);
+    dbClearRows().then(finish);
+  } else {
+    doMerge(parsed);
+    finish();
+  }
+}
+
+function processFileList(files){ handleMultipleCSVFiles(files); }
+
+function updateDataInfoBadge(){
+  const badge=document.getElementById('dataInfoBadge');
+  if(!sqpData.length){badge.style.display='none';return;}
+  badge.style.display='inline';
+  badge.textContent=`${weeks.length} week${weeks.length!==1?'s':''} · ${queries.length} queries`;
+}
+
+/* ── Export workspace ────────────────────────────────────────────────────── */
+/*
+   WHAT IS A WORKSPACE FILE?
+   It's a plain JSON file with a .sqp extension that contains:
+   - All your SQP rows (the uploaded data)
+   - Your tracked keywords
+   - Your ASIN price setting
+   - A version number so future versions of the app can handle old files
+
+   When you email this file to a colleague and they import it, they see
+   the exact same dashboard you see — with all your data and settings intact.
+   No server needed. The file is self-contained.
+*/
+function exportWorkspace(){
+  if(!sqpData.length){showStatus('No data to export — upload a CSV first');return;}
+  const currentAsin=document.getElementById('asinDisplay').textContent.replace('ASIN: ','').trim();
+  const workspace={version:1,exportedAt:new Date().toISOString(),asinPrice,trackedQueries,sqpData,detectedAsin:currentAsin};
+  const json=JSON.stringify(workspace);
+  const today=new Date().toISOString().slice(0,10);
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  a.download='sqp-workspace-'+today+'.sqp';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showStatus(`Workspace exported — ${sqpData.length} rows, ${trackedQueries.length} tracked keywords`);
+}
+
+function importWorkspace(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const ws=JSON.parse(ev.target.result);
+      if(!ws.sqpData||!Array.isArray(ws.sqpData)) throw new Error('Invalid workspace file');
+      /* Clear existing data, replace with imported */
+      dbClearRows().then(()=>{
+        sqpData=ws.sqpData;
+        isSampleData=false;
+        if(ws.trackedQueries) trackedQueries=ws.trackedQueries.slice(0,5);
+        if(ws.asinPrice) asinPrice=ws.asinPrice;
+        if(ws.detectedAsin) updateAsinDisplay(ws.detectedAsin);
+        weekLabels={};
+        return dbSaveRows(sqpData);
+      }).then(()=>{
+        try{localStorage.setItem('sqp_tracked_queries',JSON.stringify(trackedQueries));}catch(e2){}
+        processData();
+        hideLanding();
+        updateDataInfoBadge();
+        showStatus(`Workspace imported — ${sqpData.length} rows, ${trackedQueries.length} tracked keywords`);
+      });
+    }catch(err){showStatus('Import failed: '+err.message);}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+/* ── Clear all data ──────────────────────────────────────────────────────── */
+function confirmClearData(){
+  const rowCount=sqpData.length;
+  const msg=rowCount
+    ?`This will permanently delete all ${rowCount} rows of SQP data, your tracked keywords, and all saved settings. The dashboard will return to the upload screen.`
+    :'This will clear all tracked keywords and settings. Continue?';
+  showConfirm('Clear all data', msg, 'Yes, clear everything', ()=>{
+    dbClearRows().then(()=>{
+      return Promise.all([
+        dbSaveSetting('detectedAsin',null),
+        dbSaveSetting('asinPrice',null)
+      ]);
+    }).then(()=>{
+      /* Reset all in-memory state */
+      sqpData=[];weeks=[];queries=[];weekLabels={};
+      trackedQueries=[];asinPrice=29.99;isSampleData=false;
+      try{localStorage.removeItem('sqp_tracked_queries');}catch(e){}
+      /* Destroy every chart */
+      Object.keys(charts).forEach(id=>destroyChart(id));
+      /* Reset ASIN display */
+      document.getElementById('asinDisplay').textContent='ASIN: —';
+      /* Reset dropdowns */
+      const qs=document.getElementById('querySelect');
+      if(qs) qs.innerHTML='';
+      updateTrackedDropdown();
+      updateTrackedBadge();
+      updateDataInfoBadge();
+      /* Reset metric cards */
+      ['ov1','ov2','ov3','ov4'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.textContent='—';
+      });
+      showLanding();
+      showStatus('All data cleared');
+    });
+  });
+}
+
+function updateAsinDisplay(asin){
+  document.getElementById('asinDisplay').textContent='ASIN: '+asin;
+}
+
+/* loadSampleData — saves generated sample rows to IndexedDB then renders */
+function loadSampleData(){
+  sqpData=generateSample();
+  isSampleData=true;
+  weekLabels={};
+  dbSaveRows(sqpData).then(()=>{
+    processData();
+    hideLanding();
+    updateDataInfoBadge();
+    showStatus('Sample data loaded — 20 queries × 8 weeks (Oct–Nov 2024)');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AI INSIGHTS — Proxy-based integration (no user API key needed)
+   ─────────────────────────────────────────────────────────────────────────
+   All calls go through your Vercel proxy. The OpenRouter key lives only
+   on the server as an environment variable — never exposed to the browser.
+   Data sent: query names, share %, volumes — no account or personal data.
+══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * ⬇️  REPLACE THIS with your actual Vercel deployment URL after deploying.
+ *     e.g. 'https://sqp-ai-proxy.vercel.app'
+ *     Leave the /api/insight path as-is.
+ */
+const AI_PROXY_URL = 'https://sqp-ai-proxy.vercel.app/api/insight';
+
+/* Build a compact data snapshot to send to the LLM (no bloated raw CSV) */
+function buildDataSnapshot(mode){
+  if(!sqpData.length) return null;
+  const lw = getLatestWeek();
+  const prevW = weeks.length >= 2 ? weeks[weeks.length-2] : null;
+
+  /* Top 15 queries by latest-week impression share */
+  const topQs = queries.slice(0, 15);
+
+  const snapshot = topQs.map(q => {
+    const r  = lw    ? (getRows(q, lw)[0]  || {}) : {};
+    const rp = prevW ? (getRows(q, prevW)[0] || {}) : {};
+    return {
+      query:      q,
+      volume:     r.sqv     || 0,
+      imp_share:  +(r.impShare  || 0).toFixed(2),
+      clk_share:  +(r.clkShare  || 0).toFixed(2),
+      atc_share:  +(r.atcShare  || 0).toFixed(2),
+      pur_share:  +(r.purShare  || 0).toFixed(2),
+      clk_rate:   +(r.clkRate   || 0).toFixed(2),
+      atc_rate:   +(r.atcRate   || 0).toFixed(2),
+      pur_rate:   +(r.purRate   || 0).toFixed(2),
+      mkt_clk_price: +(r.clkPrice || 0).toFixed(2),
+      asin_price: +(r.clkAsinPrice || r.atcAsinPrice || r.purAsinPrice || 0).toFixed(2),
+      imp_share_prev: +(rp.impShare || 0).toFixed(2),
+      pur_share_prev: +(rp.purShare || 0).toFixed(2),
+    };
+  });
+
+  return {
+    asin_price: asinPrice,
+    weeks_count: weeks.length,
+    latest_week: lw,
+    prev_week: prevW,
+    total_queries: queries.length,
+    mode,
+    data: snapshot
+  };
+}
+
+function buildQuerySnapshot(query){
+  const rows = getRows(query).sort((a,b)=>a.week.localeCompare(b.week));
+  return {
+    query,
+    asin_price: asinPrice,
+    weekly: rows.map(r=>({
+      week: r.week,
+      volume: r.sqv||0,
+      imp_share:  +(r.impShare||0).toFixed(2),
+      clk_share:  +(r.clkShare||0).toFixed(2),
+      atc_share:  +(r.atcShare||0).toFixed(2),
+      pur_share:  +(r.purShare||0).toFixed(2),
+      clk_rate:   +(r.clkRate||0).toFixed(2),
+      atc_rate:   +(r.atcRate||0).toFixed(2),
+      pur_rate:   +(r.purRate||0).toFixed(2),
+      mkt_price:  +(r.clkPrice||0).toFixed(2),
+      asin_clk_price: +(r.clkAsinPrice||0).toFixed(2),
+    }))
+  };
+}
+
+const AI_PROMPTS = {
+  overview: snap => `You are an Amazon seller analytics expert. Analyse this Search Query Performance (SQP) data for an ASIN priced at $${snap.asin_price} across ${snap.weeks_count} week(s).
+
+Data (top ${snap.data.length} queries, latest week ${snap.latest_week}):
+${JSON.stringify(snap.data, null, 2)}
+
+Write a concise 4–6 sentence executive summary covering:
+1. Which queries this ASIN dominates (high impression AND purchase share)
+2. The overall visibility vs conversion picture
+3. Any notable pattern across the funnel
+Use plain paragraphs. Bold key query names using **markdown**.`,
+
+  funnel: snap => `You are an Amazon seller analytics expert. This ASIN is priced at $${snap.asin_price}.
+
+SQP funnel data for top ${snap.data.length} queries (latest week):
+${JSON.stringify(snap.data, null, 2)}
+
+Identify funnel leak patterns — where impression share is high but click/purchase share drops significantly. For each notable gap, name the query, describe the leak stage, and suggest one specific fix (title, image, price, A+ content, etc.).
+Format as short paragraphs. Bold query names.`,
+
+  price: snap => `You are an Amazon pricing and conversion expert. ASIN price: $${snap.asin_price}.
+
+Top ${snap.data.length} queries with market prices:
+${JSON.stringify(snap.data.map(r=>({query:r.query,asin_price:r.asin_price,market_click_price:r.mkt_clk_price,pur_share:r.pur_share,clk_share:r.clk_share})), null, 2)}
+
+Analyse whether this ASIN is priced competitively for each query segment. Identify queries where the ASIN is priced above market median and where this correlates with low purchase share. Give 2–3 concrete pricing observations.`,
+
+  trends: snap => `Amazon SQP data — ${snap.weeks_count} weeks ending ${snap.latest_week}. ASIN price: $${snap.asin_price}.
+
+Latest vs previous week comparison:
+${JSON.stringify(snap.data.map(r=>({query:r.query,imp_share_now:r.imp_share,imp_share_prev:r.imp_share_prev,pur_share_now:r.pur_share,pur_share_prev:r.pur_share_prev})), null, 2)}
+
+Identify the 3 most significant positive and negative week-over-week movements. Explain what they might indicate and what action to take. Be specific about query names.`,
+
+  opportunities: snap => `You are an Amazon growth strategist. ASIN price: $${snap.asin_price}, ${snap.total_queries} total queries in the dataset.
+
+Top ${snap.data.length} queries (latest week ${snap.latest_week}):
+${JSON.stringify(snap.data, null, 2)}
+
+Identify the top 3 growth opportunities — queries with high market volume and click rate but low ASIN share (easy wins). Also flag 1–2 defensive priorities (high purchase share queries where the ASIN must protect its position). Be specific and actionable.`
+};
+
+function buildQueryPrompt(snap){
+  return `You are an Amazon SQP analyst. Analyse this single query's performance over ${snap.weekly.length} week(s) for an ASIN priced at $${snap.asin_price}.
+
+Query: "${snap.query}"
+Weekly data (oldest → newest):
+${JSON.stringify(snap.weekly, null, 2)}
+
+Write a focused 3–5 sentence analysis covering:
+- Trend direction (improving / declining / stable) for each funnel stage
+- Whether pricing relative to market correlates with conversion
+- One specific recommended action for this query
+Bold the query name and key numbers using **markdown**.`;
+}
+
+function renderAiMarkdown(text){
+  /* Very lightweight markdown → HTML: bold, paragraphs, bullet lists */
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const bolded  = escaped.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  const lines   = bolded.split('\n');
+  let html = '', inList = false;
+  lines.forEach(line=>{
+    const trimmed = line.trim();
+    if(!trimmed){ if(inList){html+='</ul>';inList=false;} html+=''; return; }
+    if(trimmed.startsWith('- ')||trimmed.startsWith('• ')){
+      if(!inList){html+='<ul>';inList=true;}
+      html+=`<li>${trimmed.slice(2)}</li>`; return;
+    }
+    if(inList){html+='</ul>';inList=false;}
+    html+=`<p>${trimmed}</p>`;
+  });
+  if(inList) html+='</ul>';
+  return html;
+}
+
+async function callProxy(prompt){
+  const resp = await fetch(AI_PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  if(!resp.ok){
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err.error || `Server error ${resp.status}`);
+  }
+  const data = await resp.json();
+  if(data.error) throw new Error(data.error);
+  return data.text;
+}
+
+async function generateAiInsight(){
+  if(!sqpData.length){ alert('No data loaded. Please upload a CSV first.'); return; }
+
+  const mode  = document.getElementById('aiScope').value;
+  const btn   = document.getElementById('aiGenerateBtn');
+  const out   = document.getElementById('aiOutput');
+  const disc  = document.getElementById('aiDisclosure');
+
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  out.style.display = 'block';
+  out.className = 'ai-output loading';
+  out.innerHTML = '✦ Analysing your SQP data…';
+  disc.style.display = 'block';
+
+  try{
+    const snap   = buildDataSnapshot(mode);
+    const prompt = AI_PROMPTS[mode](snap);
+    const text   = await callProxy(prompt);
+    out.className = 'ai-output';
+    out.innerHTML = renderAiMarkdown(text);
+    const qp = document.getElementById('aiQueryPanel');
+    if(qp) qp.style.display = 'block';
+    populateAiQuerySelect();
+  } catch(err){
+    out.className = 'ai-output error';
+    out.innerHTML = '⚠️ ' + err.message + '<br><small>The AI service may be temporarily unavailable. Try again in a moment.</small>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Generate Insight';
+}
+
+async function generateQueryDive(){
+  const q = document.getElementById('aiQuerySelect').value;
+  if(!q) return;
+
+  const out = document.getElementById('aiQueryOutput');
+  out.style.display = 'block';
+  out.className = 'ai-output loading';
+  out.innerHTML = `✦ Analysing "${q}"…`;
+
+  try{
+    const snap   = buildQuerySnapshot(q);
+    const prompt = buildQueryPrompt(snap);
+    const text   = await callProxy(prompt);
+    out.className = 'ai-output';
+    out.innerHTML = renderAiMarkdown(text);
+  } catch(err){
+    out.className = 'ai-output error';
+    out.innerHTML = '⚠️ ' + err.message;
+  }
+}
+
+function populateAiQuerySelect(){
+  const sel = document.getElementById('aiQuerySelect');
+  if(!sel) return;
+  sel.innerHTML = '';
+  queries.forEach(q=>{ const o=document.createElement('option'); o.value=q; o.textContent=q; sel.appendChild(o); });
+}
+
+/* Populate query select when data loads */
+document.addEventListener('DOMContentLoaded', ()=>{ populateAiQuerySelect(); });
+
+/*
+   APP STARTUP — entry point. Everything runs in order:
+   1. Open the IndexedDB database
+   2. Load all previously saved rows
+   3. If there are rows → render the dashboard (user sees their data)
+   4. If no rows → show the landing screen (user sees upload prompt)
+══════════════════════════════════════════════════════════════════════════ */
+openDB().then(()=>{  return dbLoadAllRows();
+}).then(savedRows=>{
+  if(savedRows&&savedRows.length>0){
+    /* Returning user — restore their data */
+    sqpData=savedRows;
+    return dbLoadSetting('asinPrice').then(savedPrice=>{
+      if(savedPrice) asinPrice=savedPrice;
+      return dbLoadSetting('detectedAsin');
+    }).then(savedAsin=>{
+      if(savedAsin) updateAsinDisplay(savedAsin);
+      weekLabels={};
+      processData();
+      hideLanding();
+      updateDataInfoBadge();
+      showStatus(`Welcome back — ${sqpData.length} rows across ${weeks.length} week${weeks.length!==1?'s':''} restored`);
+    });
+  } else {
+    /* New user or cleared data — show landing screen */
+    showLanding();
+  }
+}).catch(err=>{
+  /* IndexedDB failed (can happen in private browsing on some browsers).
+     Fall back gracefully — the app still works, data just won't persist. */
+  console.warn('IndexedDB unavailable:',err);
+  showLanding();
+});
+</script>
+</body>
+</html>

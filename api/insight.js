@@ -58,7 +58,7 @@ export default async function handler(req, res) {
         'X-Title': 'SQP Analytics Dashboard',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3-0324:free',
+        model: 'openrouter/free',
         max_tokens: 700,
         messages: [{ role: 'user', content: prompt }],
       }),

@@ -1,0 +1,9 @@
+{
+  "name": "sqp-ai-proxy",
+  "version": "1.0.0",
+  "description": "Serverless proxy for SQP Analytics Dashboard AI Insights",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
